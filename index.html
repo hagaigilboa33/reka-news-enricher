@@ -124,12 +124,13 @@
     .research-body  { flex: 1; padding: 24px 40px; overflow-y: auto; direction: rtl; }
 
     /* Additions */
-    .addition-card { border: 1px solid #fde68a; border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; background: #fffdf5; }
+    .addition-card { border: 1px solid #86efac; border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; background: #f0fdf4; cursor: pointer; transition: border-color .15s, opacity .15s, background .15s; }
     .addition-card:last-child { margin-bottom: 0; }
-    .addition-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-    .addition-badge { display: inline-block; font-size: 10px; font-weight: bold; color: #92400e; background: rgba(180,83,9,.12); border: 1px solid rgba(180,83,9,.25); border-radius: 3px; padding: 2px 8px; }
-    .addition-delete-btn { background: none; border: none; color: #ccc; cursor: pointer; font-size: 18px; line-height: 1; padding: 0 4px; border-radius: 4px; transition: all .15s; flex-shrink: 0; }
-    .addition-delete-btn:hover { color: var(--red); background: rgba(227,30,36,.08); }
+    .addition-card:hover { border-color: #4ade80; }
+    .addition-card.card-unchecked { opacity: 0.38; background: #fff; border-color: #e8e8e8; }
+    .addition-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .para-checkbox { width: 16px; height: 16px; flex-shrink: 0; pointer-events: none; accent-color: #16a34a; }
+    .para-num { font-size: 11px; font-weight: bold; color: #888; }
     .addition-text { font-size: 14px; color: #1a1a1a; line-height: 1.8; direction: rtl; }
     .addition-text a { color: #1a5fa8; text-decoration: none; border-bottom: 1px dotted #1a5fa8; }
     .addition-text a:hover { border-bottom-style: solid; }
@@ -160,6 +161,8 @@
     .added a { display: inline-flex; align-items: center; font-size: 10px; font-weight: bold; color: #92400e !important; background: rgba(180,83,9,.13); border: 1px solid rgba(180,83,9,.30) !important; border-radius: 3px; padding: 1px 5px; margin-right: 3px; text-decoration: none; vertical-align: middle; white-space: nowrap; }
     .added a:hover { background: rgba(180,83,9,.22); }
     .article-legend { padding: 14px 48px 0; display: flex; align-items: center; gap: 8px; font-size: 11px; color: #bbb; border-top: 1px dashed #eee; margin-top: 20px; }
+    .result-sep { text-align: center; color: #bbb; font-size: 11px; letter-spacing: 3px; padding: 18px 0; margin: 4px 0 16px; }
+    .bg-para { background: #f8f9fa; border-right: 3px solid #d1d5db; padding: 10px 14px; border-radius: 0 4px 4px 0; }
     .result-footer { padding: 20px 48px 24px; display: flex; justify-content: center; }
     .copy-preview-wrap {
       display: none; flex-direction: column; flex-shrink: 0;
@@ -325,7 +328,7 @@
       </div>
       <div class="research-footer">
         <button class="hallucination-btn" id="hallucinationBtn">🔄 נסה שוב</button>
-        <button class="proceed-btn" id="proceedBtn">⚡ שלב בידיעה</button>
+        <button class="proceed-btn" id="proceedBtn">✍️ הטמע רקע</button>
       </div>
     </div>
 
@@ -371,99 +374,54 @@ const MODEL_AI    = 'claude-opus-4-6';
 /* ─────────────────────────────────────────
    PERPLEXITY PROMPT
 ───────────────────────────────────────── */
-const PX_SYSTEM = `אתה עוזר מחקר עיתונאי של כלכליסט. תפקידך: לחפש ברשת ולהביא עובדות רקע מדויקות ומאומתות.
+const PX_SYSTEM = `אתה עוזר מחקר עיתונאי. חפש ברשת מידע עובדתי ורלוונטי על הנושא. ענה בעברית תקנית.`;
 
-כללים מחייבים:
-- כל תוספת חייבת לכלול לינק לאימות — ללא לינק, אין תוספת
-- מקורות אמינים בלבד — עיתונות, ממשלה, אקדמיה, חברות ציבוריות. אסור ויקיפדיה, בלוגים, אתרי יח"צ, פורומים
-- שכתב את כל המידע במילים שלך — אסור בהחלט לצטט משפטים מילה במילה`;
-
-
-function makeSections(count) {
-  return Array.from({ length: count }, (_, i) =>
-    `[Tossefet ${i + 1}]\n[פסקה בעברית עיתונאית, 2-3 משפטים]`
-  ).join('\n\n');
+function buildPxPrompt(article) {
+  return `תמצא לי עוד רקע על הנושאים הבאים מהידיעה הזו:\n\n${article.trim()}`;
 }
 
-function buildPxPrompt(article, alreadyFound = [], count = 6) {
-  let extra = '';
-  if (alreadyFound.length) {
-    const snippets = alreadyFound
-      .map((a, i) => `${i + 1}. ${a.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1').substring(0, 120).trim()}...`)
-      .join('\n');
-    extra = `\nREQUIREMENT: הרקע הבא כבר נמצא — אל תחזור עליו:\n${snippets}\n\nחפש מזוויות שונות: נתונים כמותיים, הקשר היסטורי, אנשים/חברות שלא הוזכרו, רגולציה, השוואה בינלאומית.\n`;
+function splitPerplexityResponse(text) {
+  const raw = text.split(/\n\n+/).map(p => p.trim()).filter(p => p.length > 30);
+  // Merge standalone headers with the paragraph that follows them
+  const result = [];
+  for (let i = 0; i < raw.length; i++) {
+    if (/^#{1,3}\s/.test(raw[i]) && raw[i].length < 70 && i + 1 < raw.length) {
+      result.push(raw[i] + '\n' + raw[i + 1]);
+      i++;
+    } else {
+      result.push(raw[i]);
+    }
   }
-
-  return `קיבלת ידיעה עיתונאית. חפש ברשת ומצא ${count} פיסות רקע קצרות ורלוונטיות שחסרות בה.${extra}
-
-לפני כל תוספת — שאל את עצמך: "האם זה ספציפית על הנושא של הידיעה הזו, ולא רק נושא קרוב?"
-אם התשובה לא — אל תכלול.
-
-החזר בדיוק בפורמט הזה ללא הקדמה:
-
-${makeSections(count)}
-
-כללים:
-- עברית בסגנון כלכליסט
-- כל תוספת חייבת לדון ספציפית באנשים, חברות, או אירועים המוזכרים בידיעה — לא בנושא כללי הקרוב
-- חובה: כלול מספר מקור [N] לפחות פעם אחת בתוך כל תוספת — ללא ציטוט מקור, אל תכלול
-- רק מה שחסר בידיעה
-
-ידיעה:
----
-${article.trim()}`;
-}
-
-function buildHallucinationPrompt(article, count = 6) {
-  return `חשוב: בחיפוש הקודם ייתכן שחזרת עם מידע שלא קשור ישירות לידיעה הספציפית הזו.
-
-עכשיו חפש מחדש בזהירות רבה. ודא שכל מידע שתחזיר קשור ספציפית לאנשים, חברות, ואירועים המוזכרים בידיעה — לא לנושא הכללי.
-
-קיבלת ידיעה עיתונאית. חפש ברשת ומצא ${count} פיסות רקע שחסרות בה, בדיוק על הנושא הספציפי.
-
-החזר בדיוק בפורמט הזה ללא הקדמה:
-
-${makeSections(count)}
-
-כללים קפדניים:
-- כל תוספת חייבת להזכיר ישירות שמות של אנשים / חברות / אירועים מהידיעה
-- אם אינך בטוח שזה ספציפי מספיק — אל תכלול
-- חובה: לינק ממקור עיתונאי מאושר (ישראלי או בינלאומי) לכל תוספת — ללא לינק, אל תכלול
-- עברית בסגנון כלכליסט
-
-ידיעה:
----
-${article.trim()}`;
+  return result;
 }
 
 /* ─────────────────────────────────────────
    CLAUDE EMBED PROMPT
 ───────────────────────────────────────── */
 const AI_SYSTEM = `אתה עורך בכיר של כלכליסט.
-קיבלת ידיעה מקורית ו-3 פסקאות רקע עיתונאי עם לינקי מקורות.
-שלב את הרקע בתוך גוף הידיעה — לא בסוף.
+קיבלת ידיעה מקורית ומידע רקע שנמצא ברשת.
+כתוב 2-3 פסקאות רקע קצרות שיופיעו מיד אחרי הידיעה.
 
-1. שמור על כל הטקסט המקורי ללא שינוי
-2. שלב כל תוספת בנקודה הרלוונטית ביותר
-3. פורמט חובה לכל מידע שנוסף: 【טקסט שנוסף】
-4. חובה: שמור את לינק המקור [↗](URL) בתוך הסוגריים: 【טקסט [↗](URL)】 — אל תמחק לינקים!
-5. עברית בסגנון כלכליסט — ישיר, מקצועי
-6. 3-5 פסקאות
-7. שכתב את הרקע במילים שלך — אסור בהחלט להעתיק ניסוח ממקורות חיצוניים`;
+כללים:
+- עברית עיתונאית בסגנון כלכליסט — ישיר, מקצועי, לא אקדמי
+- כל פסקה: 2-3 משפטים מהודקים
+- אל תכתוב כותרות, מספרים, נקודות, או כל הקדמה
+- הפסקאות צריכות לזרום טבעית אחרי הידיעה — כאילו הן חלק ממנה
+- שכתב את המידע במילים שלך`;
 
-function buildAiPrompt(article, additions) {
+function buildAiPrompt(article, selectedTexts) {
   return `ידיעה מקורית:
 ---
 ${article.trim()}
+
+מידע רקע שנמצא:
 ---
+${selectedTexts.join('\n\n')}
 
-רקע שנמצא:
-${additions.map((a, i) => `[רקע ${i + 1}]\n${a}`).join('\n\n')}
+כתוב 2-3 פסקאות רקע בסגנון כלכליסט שיופיעו אחרי הידיעה.
 
-שלב את הרקע בתוך גוף הידיעה. כל מידע שנוסף: עטוף ב-【 】.
-
-%%ARTICLE%%
-[הידיעה המלאה]
+%%BACKGROUND%%
+[הפסקאות כאן]
 %%END%%`;
 }
 
@@ -474,8 +432,8 @@ let isLoading          = false;
 let timerInterval      = null;
 let savedArticle       = '';
 let savedAdditions     = [];
+let selectedParagraphs = new Set();
 let savedResult        = '';
-let additionCount      = 6;
 
 /* ─────────────────────────────────────────
    API KEYS
@@ -553,7 +511,7 @@ function updateBtn() {
 document.getElementById('headerLogo').addEventListener('click', () => {
   if (isLoading) return;
   articleInput.value = ''; charCount.textContent = '0 תווים';
-  savedArticle = ''; savedAdditions = [];
+  savedArticle = ''; savedAdditions = []; selectedParagraphs = new Set();
   setView('placeholder'); enrichStatus.textContent = ''; updateBtn();
 });
 
@@ -648,56 +606,36 @@ function inlineCitations(text, citations) {
 }
 
 /* ─────────────────────────────────────────
-   PARSER
-───────────────────────────────────────── */
-function parseAdditions(text, maxCount = 10) {
-  const t = text.trim();
-  const additions = [];
-  for (let i = 1; i <= maxCount; i++) {
-    const rStart = new RegExp(`\\[Tossefet\\s*${i}\\]`, 'i');
-    const mStart = rStart.exec(t);
-    if (!mStart) break;
-    const contentStart = mStart.index + mStart[0].length;
-    // Search for next marker in the *remaining* text only
-    const remaining = t.substring(contentStart);
-    const rEnd = new RegExp(`\\[Tossefet\\s*${i + 1}\\]`, 'i');
-    const mEnd = rEnd.exec(remaining);
-    const content = mEnd ? remaining.substring(0, mEnd.index).trim() : remaining.trim();
-    if (content) additions.push(content);
-  }
-  return additions;
-}
-
-/* ─────────────────────────────────────────
    RENDER HELPERS
 ───────────────────────────────────────── */
-function renderLinks(text) {
-  return text.replace(
-    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
-    (_, t, u) => `<a href="${u}" target="_blank" rel="noopener">${t}</a>`
-  );
+function renderMarkdown(text) {
+  return text
+    .replace(/\[([^\]]*)\]\((https?:\/\/[^\s)]*)\)/g,
+      (_, label, url) => `<a href="${url}" target="_blank" rel="noopener" class="link-ext">${label}</a>`)
+    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/^#{1,3}\s+/gm, '')
+    .replace(/^[-*]\s+/gm, '• ')
+    .replace(/\n/g, '<br>');
 }
 
 /* ─────────────────────────────────────────
    BUILD COPY TEXT
-   - Strips 【】 markers (keeps content)
-   - Calcalist/CTech links → (URL) in parens
-   - External links → link text only, no URL
+   - Original article + background paragraphs
+   - Strips markdown links (keeps label text)
 ───────────────────────────────────────── */
-function buildCopyText(raw) {
-  // Strip 【 and 】 markers
-  let t = raw.replace(/【/g, '').replace(/】/g, '');
+function buildCopyText(bgText) {
+  const bg = bgText
+    .replace(/\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g, '$1')
+    .replace(/ {2,}/g, ' ').trim();
+  return savedArticle.trim() + '\n\n' + bg;
+}
 
-  // Calcalist/CTech links → (URL) in parens; external links → text only, no URL
-  t = t.replace(/\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g, (_, linkText, url) => {
-    const isOwned = url.includes('calcalist.co.il') || url.includes('ctech.co.il');
-    const isArrow = linkText.trim() === '↗';
-    if (isArrow) return isOwned ? ` (${url})` : '';
-    return isOwned ? `${linkText} (${url})` : linkText;
-  });
-
-  t = t.replace(/ {2,}/g, ' ').replace(/ \n/g, '\n').replace(/\n /g, '\n');
-  return t.trim();
+function renderResultView(article, background) {
+  const artHtml = article.split(/\n\n+/).map(p => p.trim()).filter(Boolean)
+    .map(p => `<div class="article-para">${p.replace(/\n/g, '<br>')}</div>`).join('');
+  const bgHtml = background.split(/\n\n+/).map(p => p.trim()).filter(Boolean)
+    .map(p => `<div class="article-para bg-para">${p.replace(/\n/g, '<br>')}</div>`).join('');
+  return artHtml + '<div class="result-sep">— רקע —</div>' + bgHtml;
 }
 
 function renderArticle(text) {
@@ -714,43 +652,52 @@ function renderArticle(text) {
 /* ─────────────────────────────────────────
    RENDER RESEARCH CARDS
 ───────────────────────────────────────── */
+function updateResearchMeta() {
+  const sel = selectedParagraphs.size;
+  const tot = savedAdditions.length;
+  document.getElementById('researchMeta').textContent = `${sel} / ${tot} נבחרו`;
+  document.getElementById('proceedBtn').disabled = sel === 0;
+}
+
 function renderResearchCards() {
   const bodyEl = document.getElementById('researchBody');
   if (!savedAdditions.length) {
-    bodyEl.innerHTML = '<div style="color:#bbb;font-size:13px;padding:10px 0;direction:rtl;">אין תוספות — לחץ "חפש עוד רקע"</div>';
-    document.getElementById('researchMeta').textContent = 'אין תוספות';
+    bodyEl.innerHTML = '<div style="color:#bbb;font-size:13px;padding:10px 0;direction:rtl;">לא נמצא רקע — לחץ "חפש רקע"</div>';
+    document.getElementById('researchMeta').textContent = 'אין תוצאות';
     document.getElementById('proceedBtn').disabled = true;
     return;
   }
 
   bodyEl.innerHTML = savedAdditions.map((txt, i) => `
-    <div class="addition-card" data-index="${i}">
+    <div class="addition-card ${selectedParagraphs.has(i) ? '' : 'card-unchecked'}" data-index="${i}">
       <div class="addition-card-header">
-        <div class="addition-badge">תוספת ${i + 1}</div>
-        <button class="addition-delete-btn" data-index="${i}" title="הסר תוספת">×</button>
+        <input type="checkbox" class="para-checkbox" ${selectedParagraphs.has(i) ? 'checked' : ''}>
+        <span class="para-num">פסקה ${i + 1}</span>
       </div>
-      <div class="addition-text">${renderLinks(txt)}</div>
+      <div class="addition-text">${renderMarkdown(txt)}</div>
     </div>`).join('');
 
-  document.getElementById('researchMeta').textContent = `${savedAdditions.length} תוספות`;
-  document.getElementById('proceedBtn').disabled = false;
+  updateResearchMeta();
 }
 
-// Event delegation for X buttons
+// Toggle paragraph selection on card click (but not on link clicks)
 document.getElementById('researchBody').addEventListener('click', e => {
-  const btn = e.target.closest('.addition-delete-btn');
-  if (!btn || isLoading) return;
-  const idx = parseInt(btn.dataset.index, 10);
-  if (!isNaN(idx)) {
-    savedAdditions.splice(idx, 1);
-    renderResearchCards();
-  }
+  if (e.target.tagName === 'A' || isLoading) return;
+  const card = e.target.closest('.addition-card');
+  if (!card) return;
+  const idx = parseInt(card.dataset.index, 10);
+  if (isNaN(idx)) return;
+  if (selectedParagraphs.has(idx)) selectedParagraphs.delete(idx);
+  else selectedParagraphs.add(idx);
+  card.classList.toggle('card-unchecked', !selectedParagraphs.has(idx));
+  card.querySelector('.para-checkbox').checked = selectedParagraphs.has(idx);
+  updateResearchMeta();
 });
 
 /* ─────────────────────────────────────────
    PHASE 1 — SEARCH (Perplexity)
 ───────────────────────────────────────── */
-async function runPxSearch(promptText, appendMode = false) {
+async function runPxSearch(promptText) {
   if (isLoading) return;
   isLoading = true; updateBtn();
   enrichStatus.textContent = ''; enrichStatus.className = 'enrich-status';
@@ -760,12 +707,10 @@ async function runPxSearch(promptText, appendMode = false) {
   startTimer();
 
   try {
-    const { text: response, citations: rawCitations } = await callPerplexity(promptText);
-    console.log('--- PERPLEXITY RAW RESPONSE ---');
-    console.log(response);
-    console.log('--- PARSED ADDITIONS ---', parseAdditions(response).length, 'found');
-    const additions = parseAdditions(response);
-    savedAdditions = appendMode ? [...savedAdditions, ...additions] : additions;
+    const { text: response } = await callPerplexity(promptText);
+    const additions = splitPerplexityResponse(response);
+    savedAdditions = additions;
+    selectedParagraphs = new Set(additions.map((_, i) => i)); // all selected by default
 
     stopTimer();
     renderResearchCards();
@@ -781,20 +726,13 @@ async function runPxSearch(promptText, appendMode = false) {
   }
 }
 
-async function doSearch(alreadyFound = []) {
+async function doSearch() {
   savedArticle = articleInput.value.trim();
   if (!savedArticle) return;
-  await runPxSearch(buildPxPrompt(savedArticle, alreadyFound, additionCount));
+  await runPxSearch(buildPxPrompt(savedArticle));
 }
 
-async function doHallucinationSearch() {
-  const article = savedArticle || articleInput.value.trim();
-  if (!article) return;
-  savedAdditions = []; // clear current additions
-  await runPxSearch(buildHallucinationPrompt(article, additionCount));
-}
-
-enrichBtn.addEventListener('click', () => doSearch([]));
+enrichBtn.addEventListener('click', doSearch);
 
 /* ─────────────────────────────────────────
    STREAMING API (Claude)
@@ -836,20 +774,20 @@ async function streamAPI(body, onEvent) {
    PHASE 2 — EMBED (Claude)
 ───────────────────────────────────────── */
 document.getElementById('proceedBtn').addEventListener('click', async () => {
-  if (isLoading || !savedArticle || !savedAdditions.length) return;
-  if (false) { // removed key check — server handles auth
-  }
+  if (isLoading || !savedArticle || selectedParagraphs.size === 0) return;
 
   isLoading = true; updateBtn();
   setView('loading');
-  setStage(2, 'מטמיע רקע בידיעה...');
+  setStage(2, 'כותב רקע ערוך...');
   startTimer();
+
+  const selectedTexts = [...selectedParagraphs].sort((a, b) => a - b).map(i => savedAdditions[i]);
 
   try {
     const raw = await streamAPI({
-      model: MODEL_AI, max_tokens: 4000,
+      model: MODEL_AI, max_tokens: 2000,
       system: AI_SYSTEM,
-      messages: [{ role: 'user', content: buildAiPrompt(savedArticle, savedAdditions) }],
+      messages: [{ role: 'user', content: buildAiPrompt(savedArticle, selectedTexts) }],
     }, (ev, append) => {
       if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') {
         append(ev.delta.text);
@@ -857,14 +795,14 @@ document.getElementById('proceedBtn').addEventListener('click', async () => {
       }
     });
 
-    const m = raw.match(/%%ARTICLE%%([\s\S]*?)%%END%%/);
-    const articleText = m ? m[1].trim() : raw.replace(/%%[A-Z]+%%/g, '').trim();
-    if (!articleText || articleText.length < 30) throw new Error('תגובה ריקה. נסה שוב.');
+    const m = raw.match(/%%BACKGROUND%%([\s\S]*?)%%END%%/);
+    const bgText = m ? m[1].trim() : raw.replace(/%%[A-Z]+%%/g, '').trim();
+    if (!bgText || bgText.length < 20) throw new Error('תגובה ריקה. נסה שוב.');
 
-    savedResult = articleText;
-    articleBody.innerHTML = renderArticle(articleText);
-    const addedCount = (articleText.match(/【[\s\S]*?】/g) || []).length;
-    document.getElementById('resultMeta').textContent = `${addedCount} תוספות שולבו`;
+    savedResult = bgText;
+    articleBody.innerHTML = renderResultView(savedArticle, bgText);
+    const paraCount = bgText.split(/\n\n+/).filter(Boolean).length;
+    document.getElementById('resultMeta').textContent = `${paraCount} פסקאות רקע`;
 
     stopTimer();
     setView('result');
@@ -886,7 +824,7 @@ document.getElementById('proceedBtn').addEventListener('click', async () => {
 ───────────────────────────────────────── */
 document.getElementById('hallucinationBtn').addEventListener('click', () => {
   if (isLoading) return;
-  doHallucinationSearch();
+  doSearch();
 });
 
 /* ─────────────────────────────────────────
