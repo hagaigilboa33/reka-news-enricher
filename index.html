@@ -378,7 +378,6 @@ const PX_SYSTEM = `אתה עוזר מחקר עיתונאי של כלכליסט. 
 - מקורות אמינים בלבד — עיתונות, ממשלה, אקדמיה, חברות ציבוריות. אסור ויקיפדיה, בלוגים, אתרי יח"צ, פורומים
 - שכתב את כל המידע במילים שלך — אסור בהחלט לצטט משפטים מילה במילה`;
 
-const PX_SYSTEM_FALLBACK = PX_SYSTEM;
 
 function makeSections(count) {
   return Array.from({ length: count }, (_, i) =>
@@ -477,7 +476,6 @@ let savedArticle       = '';
 let savedAdditions     = [];
 let savedResult        = '';
 let additionCount      = 6;
-let isExternalFallback = false;
 
 /* ─────────────────────────────────────────
    API KEYS
@@ -555,7 +553,7 @@ function updateBtn() {
 document.getElementById('headerLogo').addEventListener('click', () => {
   if (isLoading) return;
   articleInput.value = ''; charCount.textContent = '0 תווים';
-  savedArticle = ''; savedAdditions = []; isExternalFallback = false;
+  savedArticle = ''; savedAdditions = [];
   setView('placeholder'); enrichStatus.textContent = ''; updateBtn();
 });
 
@@ -603,14 +601,14 @@ function stopTimer() {
 /* ─────────────────────────────────────────
    PERPLEXITY API CALL
 ───────────────────────────────────────── */
-async function callPerplexity(promptText, useFallback = false) {
+async function callPerplexity(promptText) {
   const res = await fetch(`${SERVER_URL}/api/perplexity`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: MODEL_PX,
       messages: [
-        { role: 'system', content: useFallback ? PX_SYSTEM_FALLBACK : PX_SYSTEM },
+        { role: 'system', content: PX_SYSTEM },
         { role: 'user',   content: promptText }
       ],
       max_tokens: 1800,
@@ -725,12 +723,7 @@ function renderResearchCards() {
     return;
   }
 
-  const warning = isExternalFallback
-    ? `<div style="background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.4);border-radius:6px;padding:10px 14px;margin-bottom:12px;color:#fbbf24;font-size:13px;direction:rtl;">
-        ⚠ זהירות: לא נמצאו כתבות עיתונאיות בנושא, אלא רק מאתרים חיצוניים. השתמש באופן אחראי.
-       </div>` : '';
-
-  bodyEl.innerHTML = warning + savedAdditions.map((txt, i) => `
+  bodyEl.innerHTML = savedAdditions.map((txt, i) => `
     <div class="addition-card" data-index="${i}">
       <div class="addition-card-header">
         <div class="addition-badge">תוספת ${i + 1}</div>
@@ -769,21 +762,7 @@ async function runPxSearch(promptText, appendMode = false) {
   try {
     const { text: response, citations: rawCitations } = await callPerplexity(promptText);
     const additions = parseAdditions(response);
-
-    // Only keep additions that contain a verified link — no link = not trustworthy
-    const additions_verified = additions.filter(a => /\]\(https?:\/\//.test(a));
-
-    if (!additions_verified.length && !appendMode) {
-      // Fallback: retry with broader sources
-      enrichStatus.textContent = 'לא נמצאו מקורות עיתונאיים — מחפש במקורות חיצוניים...';
-      const { text: fbResponse } = await callPerplexity(promptText, true);
-      const fbAdditions = parseAdditions(fbResponse).filter(a => /\]\(https?:\/\//.test(a));
-      savedAdditions = fbAdditions;
-      isExternalFallback = fbAdditions.length > 0;
-    } else {
-      savedAdditions = appendMode ? [...savedAdditions, ...additions_verified] : additions_verified;
-      isExternalFallback = false;
-    }
+    savedAdditions = appendMode ? [...savedAdditions, ...additions] : additions;
 
     stopTimer();
     renderResearchCards();
