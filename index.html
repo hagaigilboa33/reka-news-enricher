@@ -364,8 +364,7 @@
 /* ─────────────────────────────────────────
    CONSTANTS
 ───────────────────────────────────────── */
-const STORAGE_PX  = 'reka_perplexity_key_v1';
-const STORAGE_AI  = 'reka_anthropic_key_v1';
+const SERVER_URL  = 'https://reka-server.onrender.com';
 const MODEL_PX    = 'sonar-pro';
 const MODEL_AI    = 'claude-opus-4-6';
 
@@ -486,24 +485,11 @@ let additionCount  = 6;
 /* ─────────────────────────────────────────
    API KEYS
 ───────────────────────────────────────── */
-function getPxKey() { return localStorage.getItem(STORAGE_PX) || ''; }
-function getAiKey() { return localStorage.getItem(STORAGE_AI) || ''; }
-
-function savePxKey(k) {
-  if (!k.trim().startsWith('pplx-')) return false;
-  localStorage.setItem(STORAGE_PX, k.trim()); refreshKeyState(); return true;
-}
-function saveAiKey(k) {
-  if (!k.trim().startsWith('sk-')) return false;
-  localStorage.setItem(STORAGE_AI, k.trim()); refreshKeyState(); return true;
-}
-
 function refreshKeyState() {
-  const hasPx = !!getPxKey(), hasAi = !!getAiKey();
-  document.getElementById('gearAlert').style.display = (!hasPx) ? 'block' : 'none';
+  document.getElementById('gearAlert').style.display = 'none';
   updateBtn();
   const pb = document.getElementById('proceedBtn');
-  if (pb) pb.disabled = !hasAi;
+  if (pb) pb.disabled = false;
 }
 
 /* ─────────────────────────────────────────
@@ -565,7 +551,7 @@ articleInput.addEventListener('input', () => {
 });
 
 function updateBtn() {
-  enrichBtn.disabled = articleInput.value.trim().length < 15 || !getPxKey() || isLoading;
+  enrichBtn.disabled = articleInput.value.trim().length < 15 || isLoading;
 }
 
 /* Header logo reset */
@@ -621,15 +607,9 @@ function stopTimer() {
    PERPLEXITY API CALL
 ───────────────────────────────────────── */
 async function callPerplexity(promptText) {
-  const pxKey = getPxKey();
-  if (!pxKey) throw new Error('חסר מפתח Perplexity — לחץ ⚙');
-
-  const res = await fetch('https://api.perplexity.ai/chat/completions', {
+  const res = await fetch(`${SERVER_URL}/api/perplexity`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${pxKey}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: MODEL_PX,
       messages: [
@@ -831,15 +811,10 @@ enrichBtn.addEventListener('click', () => doSearch([]));
    STREAMING API (Claude)
 ───────────────────────────────────────── */
 async function streamAPI(body, onEvent) {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const res = await fetch(`${SERVER_URL}/api/anthropic`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': getAiKey(),
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({ ...body, stream: true }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     let msg = `שגיאת Claude (${res.status})`;
@@ -959,10 +934,6 @@ document.getElementById('copyPreviewClose').addEventListener('click', () => {
 ───────────────────────────────────────── */
 refreshKeyState();
 setView('placeholder');
-// Open settings on first load if Perplexity key missing
-if (!getPxKey()) {
-  setTimeout(() => modal.classList.add('open'), 500);
-}
 </script>
 </body>
 </html>
