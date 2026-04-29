@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>משלים פרטים · כלכליסט</title>
+  <style>
+    :root {
+      --red:        #E31E24;
+      --bg:         #0b0b0b;
+      --panel:      #141414;
+      --border:     #1f1f1f;
+      --border-mid: #2a2a2a;
+      --text-dim:   #444;
+      --text-mid:   #888;
+      --added-bg:   rgba(251,191,36,.10);
+      --added-line: rgba(245,158,11,.55);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: Arial, Helvetica, sans-serif; background: var(--bg); color: #fff; }
+    body { display: flex; flex-direction: column; overflow: hidden; }
+
+    /* HEADER */
+    header {
+      flex-shrink: 0; display: flex; align-items: center; gap: 20px;
+      padding: 0 32px; height: 64px;
+      background: #000; border-bottom: 1px solid var(--border);
+    }
+    header img { height: 32px; opacity: .9; cursor: pointer; transition: opacity .2s; }
+    header img:hover { opacity: 1; }
+    .header-div { width: 1px; height: 26px; background: var(--border-mid); }
+    .header-brand {
+      display: flex; align-items: center; gap: 14px;
+    }
+    .header-reka {
+      font-size: 26px; font-weight: 900; color: #fff;
+      letter-spacing: 5px; text-transform: uppercase; line-height: 1;
+    }
+    .header-reka .rk { color: var(--red); }
+    .header-divv {
+      width: 1px; height: 28px; background: #2a2a2a; flex-shrink: 0;
+    }
+    .header-tagline {
+      font-size: 16px; font-weight: 700; color: #bbb;
+      letter-spacing: 0.4px; white-space: nowrap; line-height: 1;
+    }
+    .header-tagline .tl-accent {
+      color: var(--red);
+    }
+    .header-spacer { flex: 1; }
+    .header-gear { font-size: 15px; cursor: pointer; color: var(--text-dim); padding: 6px; border-radius: 5px; transition: all .15s; position: relative; }
+    .header-gear:hover { color: #fff; background: var(--border-mid); }
+    .gear-alert { position: absolute; top: 4px; left: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--red); display: none; }
+
+    /* WORKSPACE */
+    .workspace { flex: 1; display: grid; grid-template-columns: 300px 1fr; overflow: hidden; }
+
+    /* LEFT PANEL */
+    .panel-left {
+      background: var(--panel); border-left: 1px solid var(--border);
+      display: flex; flex-direction: column; padding: 20px; gap: 12px; overflow-y: auto;
+    }
+    .panel-label { font-size: 10px; font-weight: bold; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 4px; }
+    textarea {
+      width: 100%; flex: 1; min-height: 320px;
+      background: #0d0d0d; border: 1px solid var(--border-mid);
+      border-radius: 8px; padding: 14px;
+      font-family: Arial, Helvetica, sans-serif; font-size: 14px;
+      line-height: 1.75; color: #e8e8e8; resize: none;
+      direction: rtl; outline: none; transition: border-color .2s;
+    }
+    textarea:focus { border-color: #333; }
+    textarea::placeholder { color: #666; }
+    .char-count { font-size: 11px; color: var(--text-dim); text-align: left; direction: ltr; }
+    .enrich-btn {
+      width: 100%; padding: 14px; background: var(--red); color: #fff;
+      border: none; border-radius: 8px; font-size: 14px; font-weight: bold;
+      cursor: pointer; font-family: Arial, sans-serif;
+      transition: background .15s, transform .1s; letter-spacing: 0.5px;
+    }
+    .enrich-btn:hover:not(:disabled) { background: #c91b20; transform: translateY(-1px); }
+    .enrich-btn:active:not(:disabled) { transform: translateY(0); }
+    .enrich-btn:disabled { background: #222; color: #555; cursor: not-allowed; transform: none; }
+    .enrich-status { font-size: 11px; min-height: 16px; color: var(--text-dim); text-align: center; line-height: 1.5; }
+    .enrich-status.ok  { color: #22c55e; }
+    .enrich-status.err { color: var(--red); }
+
+    /* RIGHT PANEL */
+    .panel-right { background: #fff; overflow-y: auto; display: flex; flex-direction: column; }
+
+    /* Placeholder */
+    .placeholder { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+    .ph-ring { width: 72px; height: 72px; border-radius: 50%; border: 2px solid #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 30px; }
+    .ph-title { font-size: 16px; color: #bbb; font-weight: bold; }
+    .ph-sub { font-size: 13px; color: #ddd; max-width: 280px; text-align: center; line-height: 1.6; }
+
+    /* Loading */
+    .loading-view { display: none; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 28px; padding: 40px; }
+    .loading-view.show { display: flex; }
+    .stages { display: flex; align-items: flex-start; }
+    .stage { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 90px; }
+    .stage-dot { width: 14px; height: 14px; border-radius: 50%; background: #e8e8e8; border: 2px solid #ddd; transition: all .4s; }
+    .stage.active .stage-dot { background: var(--red); border-color: var(--red); box-shadow: 0 0 12px rgba(227,30,36,.4); animation: pulse 1.2s ease-in-out infinite; }
+    .stage.done .stage-dot { background: #22c55e; border-color: #22c55e; }
+    @keyframes pulse { 0%,100% { box-shadow: 0 0 8px rgba(227,30,36,.3); } 50% { box-shadow: 0 0 18px rgba(227,30,36,.6); } }
+    .stage-label { font-size: 11px; color: #bbb; white-space: nowrap; }
+    .stage.active .stage-label { color: #333; font-weight: bold; }
+    .stage.done   .stage-label { color: #22c55e; }
+    .stage-connector { width: 60px; height: 2px; background: #e8e8e8; margin-top: 6px; transition: background .4s; }
+    .stage-connector.done { background: #22c55e; }
+    .loading-detail { font-size: 13px; color: #666; background: #f9f9f9; border: 1px solid #eee; border-radius: 8px; padding: 10px 18px; max-width: 420px; text-align: center; direction: rtl; min-height: 40px; line-height: 1.5; }
+    .loading-progress-wrap { width: 320px; height: 3px; background: #eee; border-radius: 99px; overflow: hidden; }
+    .loading-progress-bar { height: 100%; width: 45%; background: var(--red); border-radius: 99px; transform: translateX(200%); animation: bar-sweep 1.6s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes bar-sweep { 0% { transform:translateX(200%); opacity:.7; } 50% { opacity:1; } 100% { transform:translateX(-200%); opacity:.7; } }
+    .loading-progress-bar.done { animation: none; transform: none; width: 100%; }
+    .loading-timer { font-size: 12px; color: #aaa; margin-top: -10px; font-variant-numeric: tabular-nums; min-height: 16px; }
+
+    /* RESEARCH VIEW */
+    .research-view { display: none; flex: 1; flex-direction: column; }
+    .research-view.show { display: flex; }
+    .research-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 40px 14px; border-bottom: 2px solid var(--red); }
+    .research-title { font-size: 13px; font-weight: bold; color: #1a1a1a; }
+    .research-meta  { font-size: 11px; color: #aaa; }
+    .research-body  { flex: 1; padding: 24px 40px; overflow-y: auto; direction: rtl; }
+
+    /* Additions */
+    .addition-card { border: 1px solid #fde68a; border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; background: #fffdf5; }
+    .addition-card:last-child { margin-bottom: 0; }
+    .addition-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .addition-badge { display: inline-block; font-size: 10px; font-weight: bold; color: #92400e; background: rgba(180,83,9,.12); border: 1px solid rgba(180,83,9,.25); border-radius: 3px; padding: 2px 8px; }
+    .addition-delete-btn { background: none; border: none; color: #ccc; cursor: pointer; font-size: 18px; line-height: 1; padding: 0 4px; border-radius: 4px; transition: all .15s; flex-shrink: 0; }
+    .addition-delete-btn:hover { color: var(--red); background: rgba(227,30,36,.08); }
+    .addition-text { font-size: 14px; color: #1a1a1a; line-height: 1.8; direction: rtl; }
+    .addition-text a { color: #1a5fa8; text-decoration: none; border-bottom: 1px dotted #1a5fa8; }
+    .addition-text a:hover { border-bottom-style: solid; }
+
+    /* Research footer */
+    .research-footer { padding: 14px 40px 18px; border-top: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .hallucination-btn { padding: 10px 14px; background: #fff; color: #999; border: 1px solid #e8e8e8; border-radius: 8px; font-size: 12px; cursor: pointer; font-family: Arial, sans-serif; transition: all .15s; white-space: nowrap; }
+    .hallucination-btn:hover:not(:disabled) { background: #fff5f5; border-color: var(--red); color: var(--red); }
+    .hallucination-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .proceed-btn { padding: 12px 24px; background: var(--red); color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; font-family: Arial, sans-serif; transition: background .15s, transform .1s; white-space: nowrap; }
+    .proceed-btn:hover:not(:disabled) { background: #c91b20; transform: translateY(-1px); }
+    .proceed-btn:disabled { background: #ddd; color: #999; cursor: not-allowed; transform: none; }
+
+    /* RESULT VIEW */
+    .result-view { display: none; flex: 1; flex-direction: column; }
+    .result-view.show { display: flex; }
+    .result-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 40px 14px; border-bottom: 2px solid var(--red); }
+    .result-title { font-size: 12px; font-weight: bold; color: #1a1a1a; }
+    .result-meta  { font-size: 11px; color: #aaa; }
+    .article-wrap { flex: 1; padding: 36px 48px; overflow-y: auto; }
+    .article-body { max-width: 680px; font-size: 16px; line-height: 2.0; color: #111; direction: rtl; }
+    .article-para { margin-bottom: 22px; }
+    .article-para:last-child { margin-bottom: 0; }
+    .added { background: var(--added-bg); border-bottom: 2px solid var(--added-line); border-radius: 2px; padding: 0 1px; }
+    .link-cal { color: var(--red); text-decoration: none; border-bottom: 1px dotted var(--red); }
+    .link-ext { color: #1a5fa8; text-decoration: none; border-bottom: 1px dotted #1a5fa8; }
+    .link-ext:hover, .link-cal:hover { border-bottom-style: solid; }
+    .added a { display: inline-flex; align-items: center; font-size: 10px; font-weight: bold; color: #92400e !important; background: rgba(180,83,9,.13); border: 1px solid rgba(180,83,9,.30) !important; border-radius: 3px; padding: 1px 5px; margin-right: 3px; text-decoration: none; vertical-align: middle; white-space: nowrap; }
+    .added a:hover { background: rgba(180,83,9,.22); }
+    .article-legend { padding: 14px 48px 0; display: flex; align-items: center; gap: 8px; font-size: 11px; color: #bbb; border-top: 1px dashed #eee; margin-top: 20px; }
+    .result-footer { padding: 20px 48px 24px; display: flex; justify-content: center; }
+    .copy-preview-wrap {
+      display: none; flex-direction: column; flex-shrink: 0;
+      border-top: 2px solid var(--red); background: #0d0d0d;
+      max-height: 300px;
+    }
+    .copy-preview-wrap.show { display: flex; }
+    .copy-preview-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 9px 20px; border-bottom: 1px solid #1f1f1f; flex-shrink: 0;
+    }
+    .copy-preview-label { font-size: 10px; font-weight: bold; color: #555; letter-spacing: 1px; text-transform: uppercase; }
+    .copy-preview-close {
+      background: none; border: none; color: #555; cursor: pointer;
+      font-size: 14px; line-height: 1; padding: 2px 7px; border-radius: 4px;
+      transition: all .15s;
+    }
+    .copy-preview-close:hover { color: #fff; background: #2a2a2a; }
+    .copy-preview-area {
+      flex: 1; background: transparent; border: none; color: #ccc;
+      padding: 14px 20px; font-size: 13px; line-height: 1.75;
+      font-family: Arial, Helvetica, sans-serif; direction: rtl;
+      resize: none; outline: none; overflow-y: auto;
+    }
+    .copy-btn-big {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 15px 48px; background: #1a1a1a; color: #fff;
+      border: 2px solid #333; border-radius: 10px;
+      font-size: 15px; font-weight: bold; cursor: pointer;
+      font-family: Arial, sans-serif; transition: all .18s;
+      letter-spacing: 0.5px;
+    }
+    .copy-btn-big:hover { background: #222; border-color: #555; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,.12); }
+    .copy-btn-big.copied { background: #16a34a; border-color: #16a34a; color: #fff; transform: none; box-shadow: none; }
+    .legend-swatch { display: inline-block; width: 18px; height: 10px; background: var(--added-bg); border-bottom: 2px solid var(--added-line); border-radius: 2px; }
+
+    /* MODAL */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 200; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal-box { background: #1a1a1a; border: 1px solid var(--border-mid); border-radius: 12px; padding: 28px; width: 400px; max-width: 90vw; box-shadow: 0 24px 64px rgba(0,0,0,.6); direction: rtl; }
+    .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .modal-title { font-size: 14px; font-weight: bold; color: #fff; }
+    .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-mid); line-height: 1; }
+    .modal-close:hover { color: #fff; }
+    .modal-section { margin-bottom: 16px; }
+    .modal-label { font-size: 11px; color: var(--text-mid); margin-bottom: 6px; letter-spacing: .5px; }
+    .modal-row { display: flex; gap: 8px; }
+    .modal-input { flex: 1; background: #0d0d0d; border: 1px solid var(--border-mid); border-radius: 6px; padding: 9px 10px; font-size: 12px; color: #fff; font-family: Arial, sans-serif; direction: ltr; outline: none; }
+    .modal-input:focus { border-color: #444; }
+    .modal-save-btn { padding: 9px 16px; background: #f59e0b; color: #000; border: none; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; font-family: Arial, sans-serif; white-space: nowrap; }
+    .modal-save-btn:hover { background: #fbbf24; }
+    .modal-status { font-size: 11px; min-height: 14px; color: var(--text-mid); margin-top: 5px; }
+    .modal-status.ok  { color: #22c55e; }
+    .modal-status.err { color: var(--red); }
+    .modal-divider { height: 1px; background: var(--border-mid); margin: 16px 0; }
+    .modal-note { font-size: 11px; color: var(--text-dim); margin-top: 8px; }
+
+    @media (max-width: 720px) {
+      .workspace { grid-template-columns: 1fr; }
+      .panel-left { border-left: none; border-bottom: 1px solid var(--border); max-height: 280px; }
+      .article-wrap { padding: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <img src="calcalist-logo.jpg" alt="כלכליסט" id="headerLogo">
+  <div class="header-div"></div>
+  <div class="header-brand">
+    <div class="header-reka">RE<span class="rk">K</span>A</div>
+    <div class="header-divv"></div>
+    <div class="header-tagline">משלים פרטים <span class="tl-accent">סוגר פינות</span></div>
+  </div>
+  <div class="header-spacer"></div>
+  <div class="header-status" id="headerStatus"></div>
+  <div class="header-gear" id="settingsBtn" title="הגדרות">
+    ⚙<span class="gear-alert" id="gearAlert"></span>
+  </div>
+</header>
+
+<!-- Settings modal -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-title">⚙ הגדרות מפתחות API</div>
+      <button class="modal-close" id="modalClose">×</button>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-label">PERPLEXITY API KEY — לחיפוש רקע אוטומטי</div>
+      <div class="modal-row">
+        <input type="password" class="modal-input" id="modalPxInput" placeholder="pplx-...">
+        <button class="modal-save-btn" id="modalSavePxBtn">שמור</button>
+      </div>
+      <div class="modal-status" id="modalPxStatus"></div>
+    </div>
+
+    <div class="modal-divider"></div>
+
+    <div class="modal-section">
+      <div class="modal-label">ANTHROPIC API KEY — לשלב ההטמעה</div>
+      <div class="modal-row">
+        <input type="password" class="modal-input" id="modalAiInput" placeholder="sk-ant-api03-...">
+        <button class="modal-save-btn" id="modalSaveAiBtn">שמור</button>
+      </div>
+      <div class="modal-status" id="modalAiStatus"></div>
+    </div>
+
+    <div class="modal-note">המפתחות נשמרים בדפדפן שלך בלבד.</div>
+  </div>
+</div>
+
+<div class="workspace">
+
+  <!-- LEFT: Input -->
+  <div class="panel-left">
+    <div class="panel-label">ידיעה גולמית</div>
+    <textarea id="articleInput" placeholder="הדבק כאן את הידיעה הגולמית..."></textarea>
+    <div class="char-count" id="charCount">0 תווים</div>
+    <button class="enrich-btn" id="enrichBtn" disabled>🔍&nbsp;&nbsp;חפש רקע</button>
+    <div class="enrich-status" id="enrichStatus"></div>
+  </div>
+
+  <!-- RIGHT: Output -->
+  <div class="panel-right">
+
+    <!-- Placeholder -->
+    <div class="placeholder" id="viewPlaceholder">
+      <div class="ph-ring">📰</div>
+      <div class="ph-title">מוכן לעבודה</div>
+      <div class="ph-sub">הדבק ידיעה גולמית ולחץ "חפש רקע"</div>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading-view" id="viewLoading">
+      <div class="stages">
+        <div class="stage" id="s1">
+          <div class="stage-dot"></div>
+          <div class="stage-label">מחפש</div>
+        </div>
+        <div class="stage-connector" id="c1"></div>
+        <div class="stage" id="s2">
+          <div class="stage-dot"></div>
+          <div class="stage-label">מטמיע</div>
+        </div>
+      </div>
+      <div class="loading-detail" id="loadingDetail">מתחבר...</div>
+      <div class="loading-progress-wrap">
+        <div class="loading-progress-bar" id="progressBar"></div>
+      </div>
+      <div class="loading-timer" id="loadingTimer"></div>
+    </div>
+
+    <!-- Research results -->
+    <div class="research-view" id="viewResearch">
+      <div class="research-header">
+        <span class="research-title">📋 רקע שנמצא</span>
+        <span class="research-meta" id="researchMeta"></span>
+      </div>
+      <div class="research-body">
+        <div id="researchBody"></div>
+      </div>
+      <div class="research-footer">
+        <button class="hallucination-btn" id="hallucinationBtn">🔄 נסה שוב</button>
+        <button class="proceed-btn" id="proceedBtn">⚡ שלב בידיעה</button>
+      </div>
+    </div>
+
+    <!-- Result -->
+    <div class="result-view" id="viewResult">
+      <div class="result-header">
+        <span class="result-title">הידיעה המועשרת</span>
+        <span class="result-meta" id="resultMeta"></span>
+      </div>
+      <div class="article-wrap">
+        <div class="article-body" id="articleBody"></div>
+      </div>
+      <div class="article-legend">
+        <span class="legend-swatch"></span>
+        טקסט מסומן = רקע שנוסף
+        &nbsp;·&nbsp;
+        <span style="display:inline-flex;align-items:center;font-size:10px;color:#92400e;background:rgba(180,83,9,.13);border:1px solid rgba(180,83,9,.30);border-radius:3px;padding:1px 5px;">↗</span>
+        = מקור
+      </div>
+      <div class="result-footer">
+        <button class="copy-btn-big" id="copyBtn">📋&nbsp;&nbsp;העתק לעריכה</button>
+      </div>
+      <div class="copy-preview-wrap" id="copyPreviewWrap">
+        <div class="copy-preview-header">
+          <span class="copy-preview-label">טקסט שהועתק — עם כתובות URL</span>
+          <button class="copy-preview-close" id="copyPreviewClose">✕</button>
+        </div>
+        <textarea class="copy-preview-area" id="copyPreviewArea" readonly></textarea>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ─────────────────────────────────────────
+   CONSTANTS
+───────────────────────────────────────── */
+const STORAGE_PX  = 'reka_perplexity_key_v1';
+const STORAGE_AI  = 'reka_anthropic_key_v1';
+const MODEL_PX    = 'sonar-pro';
+const MODEL_AI    = 'claude-opus-4-6';
+
+/* ─────────────────────────────────────────
+   PERPLEXITY PROMPT
+───────────────────────────────────────── */
+const PX_SYSTEM = `אתה עוזר מחקר עיתונאי של כלכליסט. תפקידך: לחפש ברשת ולהביא עובדות רקע מדויקות ומאומתות.
+
+מקורות מאושרים בלבד — ישראל:
+calcalist.co.il, ctech.co.il, themarker.com, globes.co.il, haaretz.co.il, ynet.co.il, n12.co.il, 13tv.co.il, kan.org.il, bizportal.co.il, mako.co.il, walla.co.il
+
+מקורות מאושרים בלבד — בינלאומי:
+bloomberg.com, reuters.com, ft.com, cnbc.com, wsj.com, nytimes.com, apnews.com, economist.com, bbc.com, theguardian.com, forbes.com
+
+כללים מחייבים:
+- חפש אך ורק במקורות המאושרים לעיל — אסור ויקיפדיה, בלוגים, אתרי יח"צ, פורומים
+- כל תוספת חייבת לכלול לינק ממקור מאושר — ללא לינק, אין תוספת
+- שכתב את כל המידע במילים שלך — אסור בהחלט לצטט משפטים מילה במילה`;
+
+function makeSections(count) {
+  return Array.from({ length: count }, (_, i) =>
+    `[Tossefet ${i + 1}]\n[פסקה בעברית עיתונאית, 2-3 משפטים]`
+  ).join('\n\n');
+}
+
+function buildPxPrompt(article, alreadyFound = [], count = 6) {
+  let extra = '';
+  if (alreadyFound.length) {
+    const snippets = alreadyFound
+      .map((a, i) => `${i + 1}. ${a.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1').substring(0, 120).trim()}...`)
+      .join('\n');
+    extra = `\nREQUIREMENT: הרקע הבא כבר נמצא — אל תחזור עליו:\n${snippets}\n\nחפש מזוויות שונות: נתונים כמותיים, הקשר היסטורי, אנשים/חברות שלא הוזכרו, רגולציה, השוואה בינלאומית.\n`;
+  }
+
+  return `קיבלת ידיעה עיתונאית. חפש ברשת ומצא ${count} פיסות רקע קצרות ורלוונטיות שחסרות בה.${extra}
+
+לפני כל תוספת — שאל את עצמך: "האם זה ספציפית על הנושא של הידיעה הזו, ולא רק נושא קרוב?"
+אם התשובה לא — אל תכלול.
+
+החזר בדיוק בפורמט הזה ללא הקדמה:
+
+${makeSections(count)}
+
+כללים:
+- עברית בסגנון כלכליסט
+- כל תוספת חייבת לדון ספציפית באנשים, חברות, או אירועים המוזכרים בידיעה — לא בנושא כללי הקרוב
+- חובה: לינק ממקור עיתונאי מאושר (ישראלי או בינלאומי) לכל תוספת — ללא לינק, אל תכלול
+- רק מה שחסר בידיעה
+
+ידיעה:
+---
+${article.trim()}`;
+}
+
+function buildHallucinationPrompt(article, count = 6) {
+  return `חשוב: בחיפוש הקודם ייתכן שחזרת עם מידע שלא קשור ישירות לידיעה הספציפית הזו.
+
+עכשיו חפש מחדש בזהירות רבה. ודא שכל מידע שתחזיר קשור ספציפית לאנשים, חברות, ואירועים המוזכרים בידיעה — לא לנושא הכללי.
+
+קיבלת ידיעה עיתונאית. חפש ברשת ומצא ${count} פיסות רקע שחסרות בה, בדיוק על הנושא הספציפי.
+
+החזר בדיוק בפורמט הזה ללא הקדמה:
+
+${makeSections(count)}
+
+כללים קפדניים:
+- כל תוספת חייבת להזכיר ישירות שמות של אנשים / חברות / אירועים מהידיעה
+- אם אינך בטוח שזה ספציפי מספיק — אל תכלול
+- חובה: לינק ממקור עיתונאי מאושר (ישראלי או בינלאומי) לכל תוספת — ללא לינק, אל תכלול
+- עברית בסגנון כלכליסט
+
+ידיעה:
+---
+${article.trim()}`;
+}
+
+/* ─────────────────────────────────────────
+   CLAUDE EMBED PROMPT
+───────────────────────────────────────── */
+const AI_SYSTEM = `אתה עורך בכיר של כלכליסט.
+קיבלת ידיעה מקורית ו-3 פסקאות רקע עיתונאי עם לינקי מקורות.
+שלב את הרקע בתוך גוף הידיעה — לא בסוף.
+
+1. שמור על כל הטקסט המקורי ללא שינוי
+2. שלב כל תוספת בנקודה הרלוונטית ביותר
+3. פורמט חובה לכל מידע שנוסף: 【טקסט שנוסף】
+4. חובה: שמור את לינק המקור [↗](URL) בתוך הסוגריים: 【טקסט [↗](URL)】 — אל תמחק לינקים!
+5. עברית בסגנון כלכליסט — ישיר, מקצועי
+6. 3-5 פסקאות
+7. שכתב את הרקע במילים שלך — אסור בהחלט להעתיק ניסוח ממקורות חיצוניים`;
+
+function buildAiPrompt(article, additions) {
+  return `ידיעה מקורית:
+---
+${article.trim()}
+---
+
+רקע שנמצא:
+${additions.map((a, i) => `[רקע ${i + 1}]\n${a}`).join('\n\n')}
+
+שלב את הרקע בתוך גוף הידיעה. כל מידע שנוסף: עטוף ב-【 】.
+
+%%ARTICLE%%
+[הידיעה המלאה]
+%%END%%`;
+}
+
+/* ─────────────────────────────────────────
+   STATE
+───────────────────────────────────────── */
+let isLoading      = false;
+let timerInterval  = null;
+let savedArticle   = '';
+let savedAdditions = [];
+let savedResult    = '';
+let additionCount  = 6;
+
+/* ─────────────────────────────────────────
+   API KEYS
+───────────────────────────────────────── */
+function getPxKey() { return localStorage.getItem(STORAGE_PX) || ''; }
+function getAiKey() { return localStorage.getItem(STORAGE_AI) || ''; }
+
+function savePxKey(k) {
+  if (!k.trim().startsWith('pplx-')) return false;
+  localStorage.setItem(STORAGE_PX, k.trim()); refreshKeyState(); return true;
+}
+function saveAiKey(k) {
+  if (!k.trim().startsWith('sk-')) return false;
+  localStorage.setItem(STORAGE_AI, k.trim()); refreshKeyState(); return true;
+}
+
+function refreshKeyState() {
+  const hasPx = !!getPxKey(), hasAi = !!getAiKey();
+  document.getElementById('gearAlert').style.display = (!hasPx) ? 'block' : 'none';
+  updateBtn();
+  const pb = document.getElementById('proceedBtn');
+  if (pb) pb.disabled = !hasAi;
+}
+
+/* ─────────────────────────────────────────
+   MODAL
+───────────────────────────────────────── */
+const modal = document.getElementById('settingsModal');
+
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  modal.classList.add('open');
+});
+document.getElementById('modalClose').addEventListener('click', () => modal.classList.remove('open'));
+modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('open'); });
+
+document.getElementById('modalSavePxBtn').addEventListener('click', () => {
+  const inp = document.getElementById('modalPxInput');
+  const st  = document.getElementById('modalPxStatus');
+  if (savePxKey(inp.value)) {
+    inp.value = ''; st.textContent = '✓ נשמר'; st.className = 'modal-status ok';
+    setTimeout(() => st.textContent = '', 2000);
+  } else {
+    st.textContent = 'מפתח לא תקין (חייב להתחיל ב-pplx-)';
+    st.className = 'modal-status err';
+  }
+});
+
+document.getElementById('modalSaveAiBtn').addEventListener('click', () => {
+  const inp = document.getElementById('modalAiInput');
+  const st  = document.getElementById('modalAiStatus');
+  if (saveAiKey(inp.value)) {
+    inp.value = ''; st.textContent = '✓ נשמר'; st.className = 'modal-status ok';
+    setTimeout(() => { st.textContent = ''; modal.classList.remove('open'); }, 1200);
+  } else {
+    st.textContent = 'מפתח לא תקין (חייב להתחיל ב-sk-)';
+    st.className = 'modal-status err';
+  }
+});
+
+['modalPxInput', 'modalAiInput'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      document.getElementById(id === 'modalPxInput' ? 'modalSavePxBtn' : 'modalSaveAiBtn').click();
+    }
+  });
+});
+
+/* ─────────────────────────────────────────
+   ELEMENTS
+───────────────────────────────────────── */
+const articleInput  = document.getElementById('articleInput');
+const charCount     = document.getElementById('charCount');
+const enrichBtn     = document.getElementById('enrichBtn');
+const enrichStatus  = document.getElementById('enrichStatus');
+const articleBody   = document.getElementById('articleBody');
+const loadingDetail = document.getElementById('loadingDetail');
+
+articleInput.addEventListener('input', () => {
+  charCount.textContent = articleInput.value.length.toLocaleString('he-IL') + ' תווים';
+  updateBtn();
+});
+
+function updateBtn() {
+  enrichBtn.disabled = articleInput.value.trim().length < 15 || !getPxKey() || isLoading;
+}
+
+/* Header logo reset */
+document.getElementById('headerLogo').addEventListener('click', () => {
+  if (isLoading) return;
+  articleInput.value = ''; charCount.textContent = '0 תווים';
+  savedArticle = ''; savedAdditions = [];
+  setView('placeholder'); enrichStatus.textContent = ''; updateBtn();
+});
+
+/* ─────────────────────────────────────────
+   VIEWS + STAGES
+───────────────────────────────────────── */
+function setView(v) {
+  document.getElementById('viewPlaceholder').style.display = v === 'placeholder' ? 'flex' : 'none';
+  document.getElementById('viewLoading').classList.toggle('show',   v === 'loading');
+  document.getElementById('viewResearch').classList.toggle('show',  v === 'research');
+  document.getElementById('viewResult').classList.toggle('show',    v === 'result');
+}
+
+function setStage(n, detail) {
+  [1, 2].forEach(i => {
+    document.getElementById('s' + i).classList.toggle('done',   i < n);
+    document.getElementById('s' + i).classList.toggle('active', i === n);
+  });
+  document.getElementById('c1').classList.toggle('done', n > 1);
+  if (detail) loadingDetail.textContent = detail;
+}
+
+/* ─────────────────────────────────────────
+   TIMER
+───────────────────────────────────────── */
+function startTimer() {
+  const startMs = Date.now();
+  const el = document.getElementById('loadingTimer');
+  el.textContent = '';
+  timerInterval = setInterval(() => {
+    const s = Math.floor((Date.now() - startMs) / 1000);
+    if (s < 3) { el.textContent = ''; return; }
+    if (s < 60) el.textContent = `עובד ${s} שניות…`;
+    else { const m = Math.floor(s/60), ss = s%60; el.textContent = `עובד ${m}:${String(ss).padStart(2,'0')} דקות…`; }
+  }, 1000);
+}
+function stopTimer() {
+  clearInterval(timerInterval); timerInterval = null;
+  document.getElementById('loadingTimer').textContent = '';
+  const bar = document.getElementById('progressBar');
+  bar.classList.add('done');
+  setTimeout(() => bar.classList.remove('done'), 400);
+}
+
+/* ─────────────────────────────────────────
+   PERPLEXITY API CALL
+───────────────────────────────────────── */
+async function callPerplexity(promptText) {
+  const pxKey = getPxKey();
+  if (!pxKey) throw new Error('חסר מפתח Perplexity — לחץ ⚙');
+
+  const res = await fetch('https://api.perplexity.ai/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${pxKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: MODEL_PX,
+      messages: [
+        { role: 'system', content: PX_SYSTEM },
+        { role: 'user',   content: promptText }
+      ],
+      max_tokens: 1800,
+      temperature: 0.2,
+    })
+  });
+
+  if (!res.ok) {
+    let msg = `Perplexity שגיאה (${res.status})`;
+    try {
+      const j = await res.json();
+      if (res.status === 401) msg = 'מפתח Perplexity לא תקין.';
+      else if (res.status === 429) msg = 'חריגה ממגבלת Perplexity. נסה שוב.';
+      else if (j?.error?.message) msg = j.error.message;
+    } catch {}
+    throw new Error(msg);
+  }
+
+  const data = await res.json();
+  const content   = data.choices?.[0]?.message?.content || '';
+  // citations may be top-level OR nested in the message (depending on API version)
+  const citations = data.citations || data.choices?.[0]?.message?.citations || [];
+
+  return { text: inlineCitations(content, citations), citations };
+}
+
+/* Inline Perplexity citations — keep ALL links so editor can verify each source */
+function inlineCitations(text, citations) {
+  let out = text.replace(/\[(\d+)\]/g, (match, num) => {
+    const url = citations[parseInt(num, 10) - 1];
+    return url ? ` [↗](${url})` : '';
+  });
+  // Strip trailing numbered reference list Perplexity sometimes appends
+  out = out.replace(/\n+(\d+\.\s+https?:\/\/\S+\n?)+$/g, '');
+  out = out.replace(/ {2,}/g, ' ').replace(/ ([,.])/g, '$1');
+  return out.trim();
+}
+
+/* ─────────────────────────────────────────
+   PARSER
+───────────────────────────────────────── */
+function parseAdditions(text, maxCount = 10) {
+  const t = text.trim();
+  const additions = [];
+  for (let i = 1; i <= maxCount; i++) {
+    const rStart = new RegExp(`\\[Tossefet\\s*${i}\\]`, 'i');
+    const mStart = rStart.exec(t);
+    if (!mStart) break;
+    const contentStart = mStart.index + mStart[0].length;
+    // Search for next marker in the *remaining* text only
+    const remaining = t.substring(contentStart);
+    const rEnd = new RegExp(`\\[Tossefet\\s*${i + 1}\\]`, 'i');
+    const mEnd = rEnd.exec(remaining);
+    const content = mEnd ? remaining.substring(0, mEnd.index).trim() : remaining.trim();
+    if (content) additions.push(content);
+  }
+  return additions;
+}
+
+/* ─────────────────────────────────────────
+   RENDER HELPERS
+───────────────────────────────────────── */
+function renderLinks(text) {
+  return text.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+    (_, t, u) => `<a href="${u}" target="_blank" rel="noopener">${t}</a>`
+  );
+}
+
+/* ─────────────────────────────────────────
+   BUILD COPY TEXT
+   - Strips 【】 markers (keeps content)
+   - Calcalist/CTech links → (URL) in parens
+   - External links → link text only, no URL
+───────────────────────────────────────── */
+function buildCopyText(raw) {
+  // Strip 【 and 】 markers
+  let t = raw.replace(/【/g, '').replace(/】/g, '');
+
+  // Calcalist/CTech links → (URL) in parens; external links → text only, no URL
+  t = t.replace(/\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g, (_, linkText, url) => {
+    const isOwned = url.includes('calcalist.co.il') || url.includes('ctech.co.il');
+    const isArrow = linkText.trim() === '↗';
+    if (isArrow) return isOwned ? ` (${url})` : '';
+    return isOwned ? `${linkText} (${url})` : linkText;
+  });
+
+  t = t.replace(/ {2,}/g, ' ').replace(/ \n/g, '\n').replace(/\n /g, '\n');
+  return t.trim();
+}
+
+function renderArticle(text) {
+  let html = text;
+  html = html.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+    (_, t, u) => `<a href="${u}" target="_blank" rel="noopener" class="${u.includes('calcalist.co.il') ? 'link-cal' : 'link-ext'}">${t}</a>`
+  );
+  html = html.replace(/【([\s\S]*?)】/g, (_, t) => `<span class="added">${t}</span>`);
+  return html.split(/\n\n+/).map(p => p.trim()).filter(Boolean)
+    .map(p => `<div class="article-para">${p.replace(/\n/g, '<br>')}</div>`).join('');
+}
+
+/* ─────────────────────────────────────────
+   RENDER RESEARCH CARDS
+───────────────────────────────────────── */
+function renderResearchCards() {
+  const bodyEl = document.getElementById('researchBody');
+  if (!savedAdditions.length) {
+    bodyEl.innerHTML = '<div style="color:#bbb;font-size:13px;padding:10px 0;direction:rtl;">אין תוספות — לחץ "חפש עוד רקע"</div>';
+    document.getElementById('researchMeta').textContent = 'אין תוספות';
+    document.getElementById('proceedBtn').disabled = true;
+    return;
+  }
+
+  bodyEl.innerHTML = savedAdditions.map((txt, i) => `
+    <div class="addition-card" data-index="${i}">
+      <div class="addition-card-header">
+        <div class="addition-badge">תוספת ${i + 1}</div>
+        <button class="addition-delete-btn" data-index="${i}" title="הסר תוספת">×</button>
+      </div>
+      <div class="addition-text">${renderLinks(txt)}</div>
+    </div>`).join('');
+
+  document.getElementById('researchMeta').textContent = `${savedAdditions.length} תוספות`;
+  document.getElementById('proceedBtn').disabled = !getAiKey();
+}
+
+// Event delegation for X buttons
+document.getElementById('researchBody').addEventListener('click', e => {
+  const btn = e.target.closest('.addition-delete-btn');
+  if (!btn || isLoading) return;
+  const idx = parseInt(btn.dataset.index, 10);
+  if (!isNaN(idx)) {
+    savedAdditions.splice(idx, 1);
+    renderResearchCards();
+  }
+});
+
+/* ─────────────────────────────────────────
+   PHASE 1 — SEARCH (Perplexity)
+───────────────────────────────────────── */
+async function runPxSearch(promptText, appendMode = false) {
+  if (isLoading) return;
+  isLoading = true; updateBtn();
+  enrichStatus.textContent = ''; enrichStatus.className = 'enrich-status';
+
+  setView('loading');
+  setStage(1, 'מחפש רקע...');
+  startTimer();
+
+  try {
+    const { text: response, citations: rawCitations } = await callPerplexity(promptText);
+    const additions = parseAdditions(response);
+
+    let newAdditions;
+    if (!additions.length) {
+      newAdditions = [response.trim()]; // fallback: raw text
+    } else {
+      // Fallback: attach citations to additions that have no links
+      newAdditions = additions.map((a, i) => {
+        if (!/\]\(https?:\/\//.test(a) && rawCitations[i]) {
+          return a + ` [↗](${rawCitations[i]})`;
+        }
+        return a;
+      });
+    }
+
+    savedAdditions = appendMode ? [...savedAdditions, ...newAdditions] : newAdditions;
+
+    stopTimer();
+    renderResearchCards();
+    if (!getAiKey()) {
+      enrichStatus.textContent = 'ℹ הגדר מפתח Claude (⚙) כדי להטמיע';
+      enrichStatus.className = 'enrich-status';
+    }
+    setView('research');
+
+  } catch (err) {
+    stopTimer();
+    setView(savedAdditions.length ? 'research' : 'placeholder');
+    enrichStatus.textContent = '✗ ' + (err.message || 'שגיאה');
+    enrichStatus.className = 'enrich-status err';
+  } finally {
+    isLoading = false; updateBtn();
+  }
+}
+
+async function doSearch(alreadyFound = []) {
+  savedArticle = articleInput.value.trim();
+  if (!savedArticle) return;
+  await runPxSearch(buildPxPrompt(savedArticle, alreadyFound, additionCount));
+}
+
+async function doHallucinationSearch() {
+  const article = savedArticle || articleInput.value.trim();
+  if (!article) return;
+  savedAdditions = []; // clear current additions
+  await runPxSearch(buildHallucinationPrompt(article, additionCount));
+}
+
+enrichBtn.addEventListener('click', () => doSearch([]));
+
+/* ─────────────────────────────────────────
+   STREAMING API (Claude)
+───────────────────────────────────────── */
+async function streamAPI(body, onEvent) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': getAiKey(),
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({ ...body, stream: true }),
+  });
+  if (!res.ok) {
+    let msg = `שגיאת Claude (${res.status})`;
+    try {
+      const j = await res.json();
+      if (res.status === 401) msg = 'מפתח Claude לא תקין.';
+      else if (res.status === 429) msg = 'חריגה ממגבלה. נסה שוב.';
+      else if (j?.error?.message) msg = j.error.message;
+    } catch {}
+    throw new Error(msg);
+  }
+  const reader = res.body.getReader(), dec = new TextDecoder();
+  let buf = '', full = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    const lines = buf.split('\n'); buf = lines.pop();
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const raw = line.slice(6).trim();
+      if (raw === '[DONE]') return full;
+      try { const ev = JSON.parse(raw); onEvent(ev, t => { full += t; }); } catch {}
+    }
+  }
+  return full;
+}
+
+/* ─────────────────────────────────────────
+   PHASE 2 — EMBED (Claude)
+───────────────────────────────────────── */
+document.getElementById('proceedBtn').addEventListener('click', async () => {
+  if (isLoading || !savedArticle || !savedAdditions.length) return;
+  if (!getAiKey()) {
+    enrichStatus.textContent = '✗ נדרש מפתח Claude — לחץ ⚙';
+    enrichStatus.className = 'enrich-status err';
+    modal.classList.add('open'); return;
+  }
+
+  isLoading = true; updateBtn();
+  setView('loading');
+  setStage(2, 'מטמיע רקע בידיעה...');
+  startTimer();
+
+  try {
+    const raw = await streamAPI({
+      model: MODEL_AI, max_tokens: 4000,
+      system: AI_SYSTEM,
+      messages: [{ role: 'user', content: buildAiPrompt(savedArticle, savedAdditions) }],
+    }, (ev, append) => {
+      if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') {
+        append(ev.delta.text);
+        loadingDetail.textContent = 'כותב...';
+      }
+    });
+
+    const m = raw.match(/%%ARTICLE%%([\s\S]*?)%%END%%/);
+    const articleText = m ? m[1].trim() : raw.replace(/%%[A-Z]+%%/g, '').trim();
+    if (!articleText || articleText.length < 30) throw new Error('תגובה ריקה. נסה שוב.');
+
+    savedResult = articleText;
+    articleBody.innerHTML = renderArticle(articleText);
+    const addedCount = (articleText.match(/【[\s\S]*?】/g) || []).length;
+    document.getElementById('resultMeta').textContent = `${addedCount} תוספות שולבו`;
+
+    stopTimer();
+    setView('result');
+    enrichStatus.textContent = '✓ בוצע'; enrichStatus.className = 'enrich-status ok';
+    setTimeout(() => { enrichStatus.textContent = ''; enrichStatus.className = 'enrich-status'; }, 3000);
+
+  } catch (err) {
+    stopTimer();
+    setView('research');
+    enrichStatus.textContent = '✗ ' + (err.message || 'שגיאה');
+    enrichStatus.className = 'enrich-status err';
+  } finally {
+    isLoading = false; updateBtn();
+  }
+});
+
+/* ─────────────────────────────────────────
+   RESEARCH FOOTER CONTROLS
+───────────────────────────────────────── */
+document.getElementById('hallucinationBtn').addEventListener('click', () => {
+  if (isLoading) return;
+  doHallucinationSearch();
+});
+
+/* ─────────────────────────────────────────
+   COPY
+───────────────────────────────────────── */
+document.getElementById('copyBtn').addEventListener('click', () => {
+  const copyText = savedResult ? buildCopyText(savedResult) : articleBody.innerText;
+  navigator.clipboard.writeText(copyText).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.classList.add('copied');
+    btn.innerHTML = '✓&nbsp;&nbsp;הועתק!';
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = '📋&nbsp;&nbsp;העתק לעריכה';
+    }, 2500);
+    // Show preview
+    const wrap = document.getElementById('copyPreviewWrap');
+    const area = document.getElementById('copyPreviewArea');
+    area.value = copyText;
+    wrap.classList.add('show');
+    setTimeout(() => area.scrollTop = 0, 50);
+  });
+});
+
+document.getElementById('copyPreviewClose').addEventListener('click', () => {
+  document.getElementById('copyPreviewWrap').classList.remove('show');
+});
+
+/* ─────────────────────────────────────────
+   INIT
+───────────────────────────────────────── */
+refreshKeyState();
+setView('placeholder');
+// Open settings on first load if Perplexity key missing
+if (!getPxKey()) {
+  setTimeout(() => modal.classList.add('open'), 500);
+}
+</script>
+</body>
+</html>
