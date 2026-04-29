@@ -788,18 +788,9 @@ async function runPxSearch(promptText, appendMode = false) {
     const { text: response, citations: rawCitations } = await callPerplexity(promptText);
     const additions = parseAdditions(response);
 
-    let newAdditions;
-    if (!additions.length) {
-      newAdditions = [response.trim()]; // fallback: raw text
-    } else {
-      // Fallback: attach citations to additions that have no links
-      newAdditions = additions.map((a, i) => {
-        if (!/\]\(https?:\/\//.test(a) && rawCitations[i]) {
-          return a + ` [↗](${rawCitations[i]})`;
-        }
-        return a;
-      });
-    }
+    // Only keep additions that contain a verified link — no link = not trustworthy
+    const additions_verified = additions.filter(a => /\]\(https?:\/\//.test(a));
+    const newAdditions = additions_verified;
 
     savedAdditions = appendMode ? [...savedAdditions, ...newAdditions] : newAdditions;
 
