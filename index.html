@@ -738,7 +738,7 @@ function renderResearchCards() {
     </div>`).join('');
 
   document.getElementById('researchMeta').textContent = `${savedAdditions.length} תוספות`;
-  document.getElementById('proceedBtn').disabled = !getAiKey();
+  document.getElementById('proceedBtn').disabled = false;
 }
 
 // Event delegation for X buttons
@@ -776,10 +776,6 @@ async function runPxSearch(promptText, appendMode = false) {
 
     stopTimer();
     renderResearchCards();
-    if (!getAiKey()) {
-      enrichStatus.textContent = 'ℹ הגדר מפתח Claude (⚙) כדי להטמיע';
-      enrichStatus.className = 'enrich-status';
-    }
     setView('research');
 
   } catch (err) {
@@ -848,10 +844,7 @@ async function streamAPI(body, onEvent) {
 ───────────────────────────────────────── */
 document.getElementById('proceedBtn').addEventListener('click', async () => {
   if (isLoading || !savedArticle || !savedAdditions.length) return;
-  if (!getAiKey()) {
-    enrichStatus.textContent = '✗ נדרש מפתח Claude — לחץ ⚙';
-    enrichStatus.className = 'enrich-status err';
-    modal.classList.add('open'); return;
+  if (false) { // removed key check — server handles auth
   }
 
   isLoading = true; updateBtn();
