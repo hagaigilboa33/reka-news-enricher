@@ -761,6 +761,9 @@ async function runPxSearch(promptText, appendMode = false) {
 
   try {
     const { text: response, citations: rawCitations } = await callPerplexity(promptText);
+    console.log('--- PERPLEXITY RAW RESPONSE ---');
+    console.log(response);
+    console.log('--- PARSED ADDITIONS ---', parseAdditions(response).length, 'found');
     const additions = parseAdditions(response);
     savedAdditions = appendMode ? [...savedAdditions, ...additions] : additions;
 
