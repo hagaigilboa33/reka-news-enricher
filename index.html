@@ -373,23 +373,12 @@ const MODEL_AI    = 'claude-opus-4-6';
 ───────────────────────────────────────── */
 const PX_SYSTEM = `אתה עוזר מחקר עיתונאי של כלכליסט. תפקידך: לחפש ברשת ולהביא עובדות רקע מדויקות ומאומתות.
 
-מקורות מאושרים בלבד — ישראל:
-calcalist.co.il, ctech.co.il, themarker.com, globes.co.il, haaretz.co.il, ynet.co.il, n12.co.il, 13tv.co.il, kan.org.il, bizportal.co.il, mako.co.il, walla.co.il
-
-מקורות מאושרים בלבד — בינלאומי:
-bloomberg.com, reuters.com, ft.com, cnbc.com, wsj.com, nytimes.com, apnews.com, economist.com, bbc.com, theguardian.com, forbes.com
-
-כללים מחייבים:
-- חפש אך ורק במקורות המאושרים לעיל — אסור ויקיפדיה, בלוגים, אתרי יח"צ, פורומים
-- כל תוספת חייבת לכלול לינק ממקור מאושר — ללא לינק, אין תוספת
-- שכתב את כל המידע במילים שלך — אסור בהחלט לצטט משפטים מילה במילה`;
-
-const PX_SYSTEM_FALLBACK = `אתה עוזר מחקר עיתונאי של כלכליסט. תפקידך: לחפש ברשת ולהביא עובדות רקע מדויקות ומאומתות.
-
-חיפוש במצב רחב — כל מקור אמין מותר (חדשות, אקדמיה, ממשלה, תעשייה).
 כללים מחייבים:
 - כל תוספת חייבת לכלול לינק לאימות — ללא לינק, אין תוספת
+- מקורות אמינים בלבד — עיתונות, ממשלה, אקדמיה, חברות ציבוריות. אסור ויקיפדיה, בלוגים, אתרי יח"צ, פורומים
 - שכתב את כל המידע במילים שלך — אסור בהחלט לצטט משפטים מילה במילה`;
+
+const PX_SYSTEM_FALLBACK = PX_SYSTEM;
 
 function makeSections(count) {
   return Array.from({ length: count }, (_, i) =>
